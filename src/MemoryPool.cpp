@@ -3,14 +3,18 @@
 namespace mem {
 
 MemoryPool::MemoryPool(size_t slot_size, size_t block_size): _block_size(block_size), _slot_size(slot_size) {
-    _block = nullptr;
     _block_cur_slot = nullptr;
     _block_end_slot = nullptr;
 
     _free_list = nullptr;
 }
 
-MemoryPool::~MemoryPool() {}
+MemoryPool::~MemoryPool() {
+    for (auto& block: _block_list) {
+        operator delete(block);
+        block = nullptr;
+    }
+}
 
 void* MemoryPool::allocate() {
     // 优先查询空闲链表
@@ -52,10 +56,10 @@ Slot* MemoryPool::pop_free_list() {
 }
 
 void MemoryPool::allocate_new_block() {
-    _block = operator new(_block_size);
-    // TODO 申请到的内存必须对齐处理，否则性能差。如没对齐的内存，硬件可能要读取两次
-    _block_cur_slot = (Slot*)_block;
-    _block_end_slot = (Slot*)((char*)_block + _block_size);
+    _block_list.push_front(operator new(_block_size));
+
+    _block_cur_slot = (Slot*)(_block_list.front());
+    _block_end_slot = (Slot*)((char*)(_block_list.front()) + _block_size);
 }
 
 HashBucket::HashBucket() {

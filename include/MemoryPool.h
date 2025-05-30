@@ -1,14 +1,15 @@
 /**
  * 内存池 v1.0
- * 线程不安全，不考虑内存对齐
+ * 线程不安全
  * 使用方式：
  *     Object* obj = newObj(Object, param1, param2, ...);
- *     deleteObj(obj);
+ *     delObj(obj);
  * 
  */
 #pragma once
 
 #include <iostream>
+#include <forward_list>
 
 namespace mem {
 
@@ -25,10 +26,12 @@ struct Slot {
 // 只存放同一大小的对象
 class MemoryPool {
 public:
+    // @slot_size 内存槽大小
+    // @block_size 单次向系统申请的内存块大小
     MemoryPool(size_t slot_size, size_t block_size = 4096);
     ~MemoryPool();
 public:
-    // 申请内存
+    // 向内存池申请内存
     void* allocate();
     // 释放内存
     void deallocate(void* ptr);
@@ -37,15 +40,15 @@ private:
     void push_free_list(Slot* slot);
     Slot* pop_free_list();
 
-    // 申请新的内存块
+    // 向系统申请新的内存块
     void allocate_new_block();
 private:
     size_t _slot_size;  // 内存块分割成内存槽的大小
 
-    void* _block;  // 向系统申请的内存块
-    size_t _block_size;  // 向系统申请的内存块的大小
-    Slot* _block_cur_slot;  // 块上下一个可用内存槽
-    Slot* _block_end_slot;  // 块上最后一块可用内存槽
+    std::forward_list<void*> _block_list;  // 向系统申请的内存块链表
+    size_t _block_size;  // 向系统申请的单块内存块的大小
+    Slot* _block_cur_slot;  // 当前块上下一个可用内存槽
+    Slot* _block_end_slot;  // 当前块上最后一块可用内存槽
     
     Slot* _free_list;  // 空闲内存槽链表
 
