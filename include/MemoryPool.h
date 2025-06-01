@@ -60,7 +60,7 @@ public:
     HashBucket();
     ~HashBucket();
 public:
-    static HashBucket& getMemoryPool();
+    static HashBucket& getInstance();
 public:
     // 申请大小为size的内存块
     void* useMemory(size_t size);
@@ -77,7 +77,7 @@ template<typename T, typename... Args>
 T* newObj(Args&&... args) {
     T* p = nullptr;
     // 申请内存 TODO
-    p = (T*)HashBucket::getMemoryPool().useMemory(sizeof(T));
+    p = (T*)HashBucket::getInstance().useMemory(sizeof(T));
     // 构建对象
     if (p)
         // 在已分配的内存上创建对象
@@ -92,7 +92,7 @@ void delObj(T* p) {
         // 析构对象
         p->~T();
         // 回收内存  TODO
-        HashBucket::getMemoryPool().freeMemory((void*)p, sizeof(T));
+        HashBucket::getInstance().freeMemory((void*)p, sizeof(T));
     }
 }
 

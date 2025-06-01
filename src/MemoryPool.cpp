@@ -74,7 +74,7 @@ HashBucket::~HashBucket() {
     }
 }
 
-HashBucket& HashBucket::getMemoryPool() {
+HashBucket& HashBucket::getInstance() {
     static HashBucket m;
     return m;
 }
