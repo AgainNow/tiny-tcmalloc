@@ -6,10 +6,6 @@
 #include "./Sample.h"
 #include "../include/MemoryPool.h"
 
-int Add(int a, int b) {
-    return a + b;
-}
-
 // params: 单轮次申请释放次数，线程数，轮次
 void Benchmark(size_t ntimes, size_t nworks, size_t rounds, const std::function<void()>& func) {
     std::vector<std::thread> vthread(nworks);  // 线程池
@@ -32,11 +28,9 @@ void Benchmark(size_t ntimes, size_t nworks, size_t rounds, const std::function<
     }
 }
 
-
 static void BM_New(benchmark::State& state) {
   for (auto _ : state)  // 由框架自动调整迭代次数，直到获得稳定的性能数据
-    // Add(2, 3);
-    Benchmark(100, 1, 100, [](){
+    Benchmark(10, 2, 10, [](){
         P1* p = new P1();
         delete p;
         P2* p2 = new P2();
@@ -49,10 +43,10 @@ static void BM_New(benchmark::State& state) {
 }
 BENCHMARK(BM_New);  // 注册测试函数
 
+// 多线程线程安全性验证
 static void BM_MemPool(benchmark::State& state) {
   for (auto _ : state)
-    // Add(2, 3);
-    Benchmark(100, 1, 100, [](){
+    Benchmark(10, 2, 10, [](){
         P1* p = mem::newObj<P1>();
         mem::delObj<P1>(p);
         P2* p2 = mem::newObj<P2>();
@@ -80,7 +74,7 @@ static void BM_MemSingleP1(benchmark::State& state) {
         }
     }
 }
-BENCHMARK(BM_MemSingleP1)->Arg(1000);
+// BENCHMARK(BM_MemSingleP1)->Arg(1000);
 
 // 单线程 重复申请释放 P1
 static void BM_NewSingleP1(benchmark::State& state) {
@@ -97,6 +91,6 @@ static void BM_NewSingleP1(benchmark::State& state) {
         }
     }
 }
-BENCHMARK(BM_NewSingleP1)->Arg(1000);
+// BENCHMARK(BM_NewSingleP1)->Arg(1000);
 
 BENCHMARK_MAIN();

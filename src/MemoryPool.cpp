@@ -21,13 +21,16 @@ void* MemoryPool::allocate() {
     Slot* slot = pop_free_list();
     if (slot) return slot;
 
-    // 其次查询block
-    if (_block_cur_slot >= _block_end_slot) {
-        allocate_new_block();
+    Slot* temp;
+    {
+        std::lock_guard<std::mutex> lock(_mtx_for_block);
+        // 其次查询block
+        if (_block_cur_slot >= _block_end_slot) {
+            allocate_new_block();
+        }
+        temp = _block_cur_slot;
+        _block_cur_slot = (Slot*)((char*)_block_cur_slot + _slot_size);
     }
-    Slot* temp = _block_cur_slot;
-    // 移动到下一个可用的位置。注意：block_cur_slot_是Slot*类型，步长为指针大小
-    _block_cur_slot += _slot_size / sizeof(Slot);
     return temp;
 }
 
@@ -39,8 +42,10 @@ void MemoryPool::deallocate(void* ptr) {
 
 // 头插法
 void MemoryPool::push_free_list(Slot* slot) {
+    std::lock_guard<std::mutex> lg(_mtx_for_free_list);
     if (!_free_list) {
         _free_list = slot;
+        _free_list->next = nullptr;  // 一定要置空，否则会越界
         return;
     }
 
@@ -48,6 +53,9 @@ void MemoryPool::push_free_list(Slot* slot) {
     _free_list = slot;
 }
 Slot* MemoryPool::pop_free_list() {
+    std::lock_guard<std::mutex> lg(_mtx_for_free_list);
+    Slot* old_head = _free_list;
+        
     if (!_free_list) return nullptr;
 
     Slot* head = _free_list;
@@ -58,8 +66,8 @@ Slot* MemoryPool::pop_free_list() {
 void MemoryPool::allocate_new_block() {
     _block_list.push_front(operator new(_block_size));
 
-    _block_cur_slot = (Slot*)(_block_list.front());
-    _block_end_slot = (Slot*)((char*)(_block_list.front()) + _block_size);
+    _block_cur_slot = reinterpret_cast<Slot*>(_block_list.front());
+    _block_end_slot = reinterpret_cast<Slot*>((char*)(_block_list.front()) + _block_size);
 }
 
 HashBucket::HashBucket() {

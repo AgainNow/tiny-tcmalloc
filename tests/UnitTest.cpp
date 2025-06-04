@@ -5,50 +5,11 @@
 #include <thread>
 #include <vector>
 #include <chrono>
+#include <future>
+#include <random>
 #include "./Sample.h"
 #include "../include/MemoryPool.h"
 
-
-
-// // params: 单轮次申请释放次数，线程数，轮次
-// void Benchmark(size_t ntimes, size_t nworks, size_t rounds, const std::function<void()>& func) {
-//     std::vector<std::thread> vthread(nworks);  // 线程池
-//     size_t total_costtime = 0;  // 总耗时
-//     for (size_t i = 0; i < nworks; ++i) {
-//         vthread[i] = std::thread([&](){
-            
-
-//             for (size_t j = 0; j < rounds; ++j) {
-//                 size_t beg = clock();
-//                 for (size_t k = 0; k < ntimes; ++k) {
-//                     func();
-//                 }
-//                 size_t end = clock();
-//                 total_costtime += (end - beg);
-//             }
-
-            
-//         });
-//     }
-//     for (auto& t: vthread) {
-//         t.join();
-//     }
-//     printf("%lu个线程并发执行%lu轮次，每轮次malloc&free %lu次，总计花费：%lu ms\n", nworks, rounds, ntimes, total_costtime);
-// }
-
-// TEST(multiThreadTest, newDelete) {
-//     // 测试new delete
-//     Benchmark(100, 1, 100, [](){
-//         P1* p = new P1();
-//         delete p;
-//         P2* p2 = new P2();
-//         delete p2;
-//         P3* p3 = new P3();
-//         delete p3;
-//         P4* p4 = new P4();
-//         delete p4;
-//     });
-// }
 
 TEST(functionalTest, baseCase) {
     P1* p1 = mem::newObj<P1>(4);
@@ -107,6 +68,23 @@ TEST(functionalTest, newSecondBlock) {
         ASSERT_NE(p, nullptr);
         mem::delObj(p);
     }
+}
+
+// 线程安全性检测
+// 安全标准：1. 
+TEST(threadSafeTest, base1) {
+    auto func = [](int i){
+        std::default_random_engine dre(i);
+        std::uniform_int_distribution<int> id(10, 100);
+
+        P1* p = mem::newObj<P1>(i);
+        std::this_thread::sleep_for(std::chrono::milliseconds(id(dre)));
+        ASSERT_EQ(p->a, i);
+        mem::delObj<P1>(p);
+    };
+    for (int i = 0; i < 10; ++i)
+        std::async(func, i);
+    
 }
 
 int main (int argc, char** argv) {

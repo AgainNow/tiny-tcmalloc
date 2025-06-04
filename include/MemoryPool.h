@@ -1,6 +1,5 @@
 /**
- * 内存池 v1.0
- * 线程不安全
+ * 内存池 v1.1
  * 使用方式：
  *     Object* obj = newObj(Object, param1, param2, ...);
  *     delObj(obj);
@@ -52,6 +51,9 @@ private:
     
     Slot* _free_list;  // 空闲内存槽链表
 
+    std::mutex _mtx_for_block;
+    std::mutex _mtx_for_free_list;
+
 };
 
 
@@ -76,7 +78,7 @@ private:
 template<typename T, typename... Args>
 T* newObj(Args&&... args) {
     T* p = nullptr;
-    // 申请内存 TODO
+    // 申请内存
     p = (T*)HashBucket::getInstance().useMemory(sizeof(T));
     // 构建对象
     if (p)
@@ -91,7 +93,7 @@ void delObj(T* p) {
     if (p) {
         // 析构对象
         p->~T();
-        // 回收内存  TODO
+        // 回收内存
         HashBucket::getInstance().freeMemory((void*)p, sizeof(T));
     }
 }
