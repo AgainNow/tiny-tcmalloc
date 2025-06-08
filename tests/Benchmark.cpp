@@ -3,94 +3,193 @@
 #include <chrono>
 #include <vector>
 #include <array>
+#include <future>
 #include "./Sample.h"
 #include "../include/MemoryPool.h"
 
-// params: 单轮次申请释放次数，线程数，轮次
-void Benchmark(size_t ntimes, size_t nworks, size_t rounds, const std::function<void()>& func) {
-    std::vector<std::thread> vthread(nworks);  // 线程池
-    // size_t total_costtime = 0;  // 总耗时
-    for (size_t i = 0; i < nworks; ++i) {
-        vthread[i] = std::thread([&](){
-            
+using namespace mem;
 
-            for (size_t j = 0; j < rounds; ++j) {
-                for (size_t k = 0; k < ntimes; ++k) {
-                    func();
-                }
+// 单线程，单一大小对象，申请后延迟释放，循环申请
+static void BM_1ThreadRelDelay(benchmark::State& state) {
+    const size_t rounds = state.range(0);  // 循环次数
+    const size_t counts = state.range(1);  // 单次循环申请的对象数量
+    std::vector<Sample<8>*> vec;
+    for (auto _: state) {
+        for (int i = 0; i < rounds; ++i) {  // 循环申请64次
+            for (int j = 0; j < counts; ++j) {
+                vec.emplace_back(newObj<Sample<8>>());
             }
-
-            
-        });
+            for (auto p: vec) {
+                delObj<Sample<8>>(p);
+            }
+            vec.clear();
+        }
     }
-    for (auto& t: vthread) {
-        t.join();
-    }
 }
+BENCHMARK(BM_1ThreadRelDelay)->Args({64, 128})->Args({128, 64});
 
-static void BM_New(benchmark::State& state) {
-  for (auto _ : state)  // 由框架自动调整迭代次数，直到获得稳定的性能数据
-    Benchmark(10, 2, 10, [](){
-        P1* p = new P1();
-        delete p;
-        P2* p2 = new P2();
-        delete p2;
-        P3* p3 = new P3();
-        delete p3;
-        P4* p4 = new P4();
-        delete p4;
-    });
-}
-BENCHMARK(BM_New);  // 注册测试函数
-
-// 多线程线程安全性验证
-static void BM_MemPool(benchmark::State& state) {
-  for (auto _ : state)
-    Benchmark(10, 2, 10, [](){
-        P1* p = mem::newObj<P1>();
-        mem::delObj<P1>(p);
-        P2* p2 = mem::newObj<P2>();
-        mem::delObj<P2>(p2);
-        P3* p3 = mem::newObj<P3>();
-        mem::delObj<P3>(p3);
-        P4* p4 = mem::newObj<P4>();
-        mem::delObj<P4>(p4);
-    });
-}
-BENCHMARK(BM_MemPool);
-
-// 单线程 重复申请释放 P1
-static void BM_MemSingleP1(benchmark::State& state) {
-    const size_t n = state.range(0);
-    std::vector<P1*> vec;
-    vec.resize(n);
+// 单线程，单一大小对象，申请后延迟释放，循环申请
+static void BM_1ThreadRelDelayNew(benchmark::State& state) {
+    const size_t rounds = state.range(0);  // 循环次数
+    const size_t counts = state.range(1);  // 单次循环申请的对象数量
+    std::vector<Sample<8>*> vec;
     for (auto _: state) {
-        // 申请n次，再释放n次
-        for (int i = 0; i < n; ++i) {
-            vec[i] = mem::newObj<P1>(); 
-        }
-        for (int i = 0; i < n; ++i) {
-            mem::delObj<P1>(vec[i]);
+        for (int i = 0; i < rounds; ++i) {
+            for (int j = 0; j < counts; ++j) {
+                vec.emplace_back(new Sample<8>());
+                // void* p = malloc(8);
+                // vec.emplace_back(new(p) Sample<8>());
+            }
+            for (auto p: vec) {
+                delete p;
+                // free(p);
+            }
+            vec.clear();
         }
     }
 }
-// BENCHMARK(BM_MemSingleP1)->Arg(1000);
+BENCHMARK(BM_1ThreadRelDelayNew)->Args({64, 128})->Args({128, 64});
 
-// 单线程 重复申请释放 P1
-static void BM_NewSingleP1(benchmark::State& state) {
-    const size_t n = state.range(0);
-    std::vector<P1*> vec;
-    vec.resize(n);
+// 单线程，多种大小对象，申请就释放，循环申请
+static void BM_1ThreadRelQuickly(benchmark::State& state) {
     for (auto _: state) {
-        // 申请n次，再释放n次
-        for (int i = 0; i < n; ++i) {
-            vec[i] = new P1; 
-        }
-        for (int i = 0; i < n; ++i) {
-            delete vec[i];
+        for (int i = 0; i < 1024; ++i) {  // 循环申请64次
+            auto p1 = newObj<Sample<4>>();
+            delObj<Sample<4>>(p1);
+            auto p2 = newObj<Sample<20>>();
+            delObj<Sample<20>>(p2);
+            auto p3 = newObj<Sample<40>>();
+            delObj<Sample<40>>(p3);
+            auto p4 = newObj<Sample<80>>();
+            delObj<Sample<80>>(p4);
         }
     }
 }
-// BENCHMARK(BM_NewSingleP1)->Arg(1000);
+BENCHMARK(BM_1ThreadRelQuickly);
+
+// 单线程，多种大小对象，申请就释放，循环申请
+static void BM_1ThreadRelQuicklyNew(benchmark::State& state) {
+    for (auto _: state) {
+        for (int i = 0; i < 1024; ++i) {
+            auto p1 = new Sample<4>();
+            delete p1;
+            auto p2 = new Sample<20>();
+            delete p2;
+            auto p3 = new Sample<40>();
+            delete p3;
+            auto p4 = new Sample<80>();
+            delete p4;
+        }
+    }
+}
+BENCHMARK(BM_1ThreadRelQuicklyNew);
+
+// 多线程，单一大小对象，申请后延迟释放，循环申请
+static void BM_NThreadRelDealy(benchmark::State& state) {
+    for (auto _: state) {
+        auto func = [](){
+            std::vector<Sample<8>*> vec;
+            for (int i = 0; i < 16; ++i) {
+                for (int j = 0; j < 8; ++j) { 
+                    vec.emplace_back(newObj<Sample<8>>());
+                }
+                for (auto p: vec) {
+                    delObj<Sample<8>>(p);
+                }
+                vec.clear();
+            }
+        };
+
+        std::vector<std::future<void>> vec;
+        for (int i = 0; i < 4; ++i) {
+            vec.push_back(std::async(std::launch::async, func));
+        }
+        for (auto& f: vec) {
+            f.get();
+        }
+    }
+}
+BENCHMARK(BM_NThreadRelDealy);
+
+// 多线程，单一大小对象，申请后延迟释放，循环申请
+static void BM_NThreadRelDealyNew(benchmark::State& state) {
+    for (auto _: state) {
+        auto func = [](){
+            std::vector<Sample<8>*> vec;
+            for (int i = 0; i < 16; ++i) {
+                for (int j = 0; j < 8; ++j) {
+                    vec.emplace_back(new Sample<8>());
+                }
+                for (auto p: vec) {
+                    delete p;
+                }
+                vec.clear();
+            }
+        };
+
+        std::vector<std::future<void>> vec;
+        for (int i = 0; i < 4; ++i) {
+            vec.push_back(std::async(std::launch::async, func));
+        }
+        for (auto& f: vec) {
+            f.get();
+        }
+    }
+}
+BENCHMARK(BM_NThreadRelDealyNew);
+
+// 多线程，多种大小对象，申请立即释放，循环申请；ABA问题会有明显段错误
+static void BM_NThreadRelQuickly(benchmark::State& state) {
+    for (auto _: state) {
+        auto func = [](){
+            for (int i = 0; i < 16; ++i) {
+                auto p1 = newObj<Sample<4>>();
+                delObj<Sample<4>>(p1);
+                auto p2 = newObj<Sample<20>>();
+                delObj<Sample<20>>(p2);
+                auto p3 = newObj<Sample<40>>();
+                delObj<Sample<40>>(p3);
+                auto p4 = newObj<Sample<80>>();
+                delObj<Sample<80>>(p4);
+            }
+        };
+
+        std::vector<std::future<void>> vec;
+        for (int i = 0; i < 4; ++i) {
+            vec.push_back(std::async(std::launch::async, func));
+        }
+        for (auto& f: vec) {
+            f.get();
+        }
+    }
+}
+BENCHMARK(BM_NThreadRelQuickly);
+
+// 多线程，多种大小对象，申请立即释放，循环申请；ABA问题会有明显段错误
+static void BM_NThreadRelQuicklyNew(benchmark::State& state) {
+    for (auto _: state) {
+        auto func = [](){
+            for (int i = 0; i < 16; ++i) {
+                auto p1 = new Sample<4>();
+                delete p1;
+                auto p2 = new Sample<20>();
+                delete p2;
+                auto p3 = new Sample<40>();
+                delete p3;
+                auto p4 = new Sample<80>();
+                delete p4;
+            }
+        };
+
+        std::vector<std::future<void>> vec;
+        for (int i = 0; i < 4; ++i) {
+            vec.push_back(std::async(std::launch::async, func));
+        }
+        for (auto& f: vec) {
+            f.get();
+        }
+    }
+}
+BENCHMARK(BM_NThreadRelQuicklyNew);
 
 BENCHMARK_MAIN();

@@ -41,3 +41,34 @@ Object* obj = newObj(params...);
 ```C++
 Object* obj = newObj(ObjID, params...)
 ```
+
+# 测试标准
+
+1. 功能测试
+    - 单线程（正常流程、边界检测）
+        - 申请各种大小的对象（参考Slot大小）
+            0byte，1byte
+            7byte，8byte，9byte
+            16byte，32byte，64byte，128byte，256byte，512byte
+            513byte
+        - 申请各种数量的对象（参考Block大小，以8byte为单位）
+            1个block：1个，2个，512个
+            2个block：
+            4个block：
+            上限：512个block
+        - 验证1个Block可以申请的对象数量
+        - 内存复用检测
+    - 多线程
+        - 线程安全
+            - ABA问题
+2. 性能测试
+    综合性能必须跑赢new/delete，测试出优势的地方，输出性能报告
+    - 单线程
+        1. 场景1：
+    - 多线程
+
+# 存在问题
+
+1. 处理ABA问题，导致内存池性能弱于原生new/delete
+2. 不处理ABA问题，单线程性能更强，但线程不安全，无法执行多线程操作
+3. Benchmark测试用例中，多个用例共享一个单例内存池，对结果会有影响

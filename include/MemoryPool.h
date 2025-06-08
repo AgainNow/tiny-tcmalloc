@@ -9,18 +9,19 @@
 
 #include <iostream>
 #include <forward_list>
+#include <utility>
+#include "LockFreeList.h"
 
 namespace mem {
 
-#define MEMORY_POOL_NUM 64  // SLOT的大小有64中，大小为8-512（即64*8）
+#define MEMORY_POOL_NUM 64  // SLOT的大小有64种，大小为8-512（即64*8）
 #define SLOT_BASE_SIZE 8  // 所有SLOT都必须是8个倍数
 #define SLOT_MAX_SIZE 512  // SLOT最大尺寸
 
-// 内存槽
-struct Slot {
-    Slot(): next(nullptr) {}
-    Slot* next;
-};
+#include <atomic>
+#include <cstdint>
+#include <iostream>
+
 
 // 只存放同一大小的对象
 class MemoryPool {
@@ -31,14 +32,10 @@ public:
     ~MemoryPool();
 public:
     // 向内存池申请内存
-    void* allocate();
+    void* allocate(int t = 0);
     // 释放内存
     void deallocate(void* ptr);
 private:
-    // 空间链表的插入和获取
-    void push_free_list(Slot* slot);
-    Slot* pop_free_list();
-
     // 向系统申请新的内存块
     void allocate_new_block();
 private:
@@ -49,10 +46,9 @@ private:
     Slot* _block_cur_slot;  // 当前块上下一个可用内存槽
     Slot* _block_end_slot;  // 当前块上最后一块可用内存槽
     
-    Slot* _free_list;  // 空闲内存槽链表
+    LockFreeList* _free_list;  // 空闲内存槽链表
 
     std::mutex _mtx_for_block;
-    std::mutex _mtx_for_free_list;
 
 };
 
@@ -65,7 +61,7 @@ public:
     static HashBucket& getInstance();
 public:
     // 申请大小为size的内存块
-    void* useMemory(size_t size);
+    void* useMemory(size_t size, int t = 0);
     // 释放内存块
     void freeMemory(void* ptr, size_t size);
 private:
@@ -75,11 +71,11 @@ private:
 // 使用: 
 //     Obj* p = newObj(Obj, parm1, parm2, ...);
 //     delObj(p);
-template<typename T, typename... Args>
+template<typename T, size_t Time = 0, typename... Args>
 T* newObj(Args&&... args) {
     T* p = nullptr;
     // 申请内存
-    p = (T*)HashBucket::getInstance().useMemory(sizeof(T));
+    p = (T*)HashBucket::getInstance().useMemory(sizeof(T), Time);
     // 构建对象
     if (p)
         // 在已分配的内存上创建对象
