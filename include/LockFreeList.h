@@ -40,13 +40,14 @@ public:
         TaggedPtr new_head;
 
         do {
+            // 要求该指令之后的指令不能重排序到它之前
             old_head = head.load(std::memory_order_acquire);
             node->next = old_head.ptr;
             new_head = {node, old_head.count + 1};
             std::this_thread::sleep_for(std::chrono::milliseconds(t));
         } while (!head.compare_exchange_weak(old_head, new_head,
-                                             std::memory_order_release,
-                                             std::memory_order_acquire));
+                                             std::memory_order_release,  // 比较成功时，交换操作之前的指令不能排到它之后
+                                             std::memory_order_acquire));  // 比较失败时，重载操作之后的指令不能排到它之前
     }
 
     // 线程安全 + 防 ABA 的头删除
@@ -56,6 +57,7 @@ public:
         TaggedPtr new_head;
 
         do {
+            // 要求该指令之后的指令不能重排序到它之前
             old_head = head.load(std::memory_order_acquire);
             if (!old_head.ptr) return nullptr;
             new_head = {old_head.ptr->next, old_head.count + 1};
@@ -106,7 +108,7 @@ public:
         do {
             old_head = head.load(std::memory_order_acquire);
             node->next = old_head;
-            // std::this_thread::sleep_for(std::chrono::milliseconds(t));
+            std::this_thread::sleep_for(std::chrono::milliseconds(t));
         } while (!head.compare_exchange_weak(old_head, node,
                                              std::memory_order_release,
                                              std::memory_order_acquire));
@@ -122,7 +124,7 @@ public:
             old_head = head.load(std::memory_order_acquire);
             if (!old_head) return nullptr;
             new_head = old_head->next;
-            // std::this_thread::sleep_for(std::chrono::milliseconds(t));
+            std::this_thread::sleep_for(std::chrono::milliseconds(t));
         } while (!head.compare_exchange_weak(old_head, new_head,
                                              std::memory_order_release,
                                              std::memory_order_acquire));

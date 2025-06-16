@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.10)
 project(MemPool)
 
 # Set C++ standard
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Include directories
@@ -33,6 +33,9 @@ target_link_libraries(${PROJECT_NAME} pthread GTest::GTest GTest::Main)
 add_executable(${PROJECT_NAME}_Benchmark ${SRC_FILES} "tests/Benchmark.cpp")
 target_link_libraries(${PROJECT_NAME}_Benchmark PRIVATE benchmark::benchmark pthread)
 
+
+add_executable(${PROJECT_NAME}_CustomBenchmark ${SRC_FILES} "tests/PerformanceTest.cpp")
+target_link_libraries(${PROJECT_NAME}_CustomBenchmark PRIVATE pthread)
 
 # 添加测试
 enable_testing()
