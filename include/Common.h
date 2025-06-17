@@ -16,6 +16,8 @@ constexpr size_t FREE_LIST_SIZE = MAX_BYTES / ALIGNMENT;  // 缓存链表节点�
 constexpr size_t PAGE_SIZE = 4096;  // 页大小 4kb
 constexpr size_t MIN_SPAN_PAGE_NUM = 8;  // 中心缓存单次获取的最小SPAN页数
 
+constexpr size_t TC_MAX_LIST_SIZE = 64;  // ThreadCache中，每种大小的空闲链表存储的内存块数量上限
+
 // 大小类管理
 class SizeClass {
 public:

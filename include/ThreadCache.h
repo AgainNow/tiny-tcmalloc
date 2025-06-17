@@ -25,6 +25,10 @@ public:
     void deallocate(void* ptr, size_t size);
 
 private:
+    // 根据内存的大小设定申请的内存块个数
+    size_t get_batch_num(size_t size);
+
+private:
     // 本地缓存
     // 性能优化点：不使用STL，避免不必要开销；预分配足量内存；直接使用void*裸指针，不定义额外结构体如Slot*
     std::array<void*, FREE_LIST_SIZE> _free_list;  // idx: 内存块链表

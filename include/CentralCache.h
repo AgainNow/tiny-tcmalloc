@@ -22,13 +22,13 @@ public:
     // 释放内存
     // void deallocate(void* ptr);
 public:
-    // 自旋锁版本
-    void* allocate_spinlock();
+    // @element_num 需要获取的内存块数量
+    void* allocate_spinlock(size_t& element_num);
     // 批量插入
     void deallocate_spinlock(void* beg, void* end, size_t size);
 private:
     std::atomic_flag _spinlock;  // 自旋锁
-    std::atomic<void*> _spinlock_free_list;
+    std::atomic<void*> _spinlock_free_list;  // TODO 既然都已经用自旋锁锁上了，为什么还要用原子变量？
 private:
     // LockFreeList* _free_list;  // 空闲内存槽链表
 
@@ -46,8 +46,9 @@ public:
         return m;
 }
 public:
-    // 申请大小为size的内存块
-    void* allocate(size_t size);
+    // 申请不大于batch_num块大小为size的内存块
+    // @batch_num 必须大于等于1
+    void* batch_allocate(size_t size, size_t& batch_num);
     // 批量释放内存块
     // @beg 有效头结点；@end 有效尾节点
     void batch_deallocate(void* beg, void* end, size_t size);
