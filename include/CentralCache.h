@@ -27,10 +27,7 @@ public:
     // 批量插入
     void deallocate_spinlock(void* beg, void* end, size_t size);
 private:
-    // 从页获取内存块
-    void* fetch_from_page_cache(size_t size);
-private:
-    std::atomic_flag _spinlock;
+    std::atomic_flag _spinlock;  // 自旋锁
     std::atomic<void*> _spinlock_free_list;
 private:
     // LockFreeList* _free_list;  // 空闲内存槽链表

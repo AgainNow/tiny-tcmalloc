@@ -8,6 +8,8 @@ project(MemPool)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+add_compile_options(-Wall -O2)
+
 # Include directories
 include_directories(include)
 

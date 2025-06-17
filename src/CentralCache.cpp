@@ -7,6 +7,8 @@ namespace mem {
 CentralBucket::CentralBucket(size_t element_size) {
     // _free_list = new LockFreeList{};
     _element_size = element_size;
+    _spinlock_free_list.store(nullptr, std::memory_order_relaxed);
+    _spinlock.clear();
 }
 
 CentralBucket::~CentralBucket() {
@@ -33,20 +35,22 @@ void* CentralBucket::allocate_spinlock() {
     while (_spinlock.test_and_set(std::memory_order_acquire)) {
         std::this_thread::yield();
     }
+
     // 1. 优先查询free_list
     void* head = _spinlock_free_list.load(std::memory_order_relaxed);
     if (head) {
+
         void* next = *(void**)head;
         _spinlock_free_list.store(next, std::memory_order_release);
         next = nullptr;
     } else {
+
         // 2. 若为空，则从页缓存获取大内存块，切分后插入free_list
         // 计算实际需要的页数，向上取整
         size_t page_num = (_element_size + PAGE_SIZE - 1) / PAGE_SIZE;
         // 单次申请span，最小32kb
-        page_num = std::max(MIN_SPAN_SIZE, page_num);
+        page_num = std::max(MIN_SPAN_PAGE_NUM, page_num);
         void* span = PageCache::get_instance()->allocate_span(page_num);
-        // void* span = fetch_from_page_cache(_element_size);
         if (span) {
             size_t element_num = (page_num * PAGE_SIZE) / _element_size;
         
@@ -72,6 +76,7 @@ void* CentralBucket::allocate_spinlock() {
 void CentralBucket::deallocate_spinlock(void* beg, void* end, size_t size) {
     if (!beg || !end) return;
     while (_spinlock.test_and_set(std::memory_order_acquire)) {
+
         std::this_thread::yield();
     }
     // 头插法，如果不是spinlock，则可以考虑插入尾部，以减少和alloc部分的锁竞争
@@ -85,14 +90,6 @@ void CentralBucket::deallocate_spinlock(void* beg, void* end, size_t size) {
 
     // 释放锁
     _spinlock.clear(std::memory_order_release);
-}
-
-void* CentralBucket::fetch_from_page_cache(size_t size) {
-    // 计算实际需要的页数，向上取整
-    size_t page_num = (size + PAGE_SIZE - 1) / PAGE_SIZE;
-    // 单次申请span，最小32kb
-    page_num = std::max(MIN_SPAN_SIZE, page_num);
-    return PageCache::get_instance()->allocate_span(page_num);
 }
 
 CentralCache::CentralCache() {

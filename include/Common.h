@@ -10,11 +10,11 @@ namespace mem {
 #define SLOT_MAX_SIZE 512  // SLOT最大尺寸
 
 constexpr size_t ALIGNMENT = 8;  // 内存对齐
-constexpr size_t MAX_BYTES = 256 * 1026;  // 内存块大小上限256kb
+constexpr size_t MAX_BYTES = 256 * 1024;  // 内存块大小上限256kb
 constexpr size_t FREE_LIST_SIZE = MAX_BYTES / ALIGNMENT;  // 缓存链表节点大小种类
 
 constexpr size_t PAGE_SIZE = 4096;  // 页大小 4kb
-constexpr size_t MIN_SPAN_SIZE = PAGE_SIZE * 8;  // 中心缓存单次获取的最小SPAN大小 32kb
+constexpr size_t MIN_SPAN_PAGE_NUM = 8;  // 中心缓存单次获取的最小SPAN页数
 
 // 大小类管理
 class SizeClass {
