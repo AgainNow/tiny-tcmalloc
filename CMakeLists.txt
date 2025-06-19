@@ -23,13 +23,17 @@ find_package(benchmark REQUIRED)
 
 # Add the executable for the main target
 # add_executable(${PROJECT_NAME} ${SRC_FILES} ${TEST_FILES})
-add_executable(${PROJECT_NAME} ${SRC_FILES} "tests/UnitTest.cpp")
+add_executable(${PROJECT_NAME}_UnitTest ${SRC_FILES} "tests/UnitTest.cpp")
 
 # Add compile options
-target_compile_options(${PROJECT_NAME} PRIVATE -g -pthread)
+target_compile_options(${PROJECT_NAME}_UnitTest PRIVATE -g -pthread)
 
 # Link libraries
-target_link_libraries(${PROJECT_NAME} pthread GTest::GTest GTest::Main)
+target_link_libraries(${PROJECT_NAME}_UnitTest pthread GTest::GTest GTest::Main)
+
+
+add_executable(${PROJECT_NAME}_CustomUnitTest ${SRC_FILES} "tests/CustomUnitTest.cpp")
+target_link_libraries(${PROJECT_NAME}_CustomUnitTest PRIVATE pthread)
 
 
 add_executable(${PROJECT_NAME}_Benchmark ${SRC_FILES} "tests/Benchmark.cpp")

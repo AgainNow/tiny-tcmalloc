@@ -1,10 +1,3 @@
-/**
- * 内存池 v1.1
- * 使用方式：
- *     Object* obj = newObj(Object, param1, param2, ...);
- *     delObj(obj);
- * 
- */
 #pragma once
 
 #include <iostream>
@@ -20,7 +13,6 @@
 namespace mem {
 
 // 内存池
-// 对外接口
 class MemoryPool {
 public:
     static void* allocate(size_t size) {
@@ -32,9 +24,6 @@ public:
     }
 };
 
-// 对外接口 
-//     Obj* p = newObj(Obj, parm1, parm2, ...);
-//     delObj(p);
 template<typename T, typename... Args>
 T* newObj(Args&&... args) {
     T* p = nullptr;

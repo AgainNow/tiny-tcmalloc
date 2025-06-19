@@ -1,46 +1,57 @@
-# 内存池项目
+# 高并发内存池
 
 ## 目的
 
-- 参考卡码网的内存池项目复写一个版本，以此来学习该项目（参考的tcmalloc）
+- 参考卡码网的MemoryPool
+- 参考的tcmalloc
 
-## 需求
+## 用法
 
-- 对象大小是否固定，是否在一个可控区间内？
-- 对象的数量是否可控？是否动态可控？
-- 申请后的内存是否可回收？是否可动态回收？
-- 尽量减少内部碎片，让分配的内存块尽量贴近需求的大小
-
-- 对象大小不固定，对于在一定区间内的小对象，采用内存池分配方案；超出区间的大对象，采用new直接分配的方案
-- 线程池，全局只能有一个，所以必须是单例模式
-- 相同大小的空闲内存链放在一起
-
-## API设计
-
-示例1：
-优点：可以根据对象大小，随意调整尺寸；对象的构造一起做了
-缺点：需要准备多种尺寸大小
 ```C++
-Object* obj = newObj(Object, params...);
-deleteObj(obj);
+#include "MemoryPool.h"
+// Example1
+size_t size = 8;
+void* ptr = mem::MemoryPool::get_instance()::allocate(size);
+mem::MemoryPool::get_instance()::deallcoate(ptr, size);
+
+// Example2
+Object* obj = newObj<Object>(params...);
+delObj<Object>(obj);
 ```
 
-示例2：根据对象大小分配内存，构建不做（不推荐）
-```C++
-void* p = mallocObj(size_t size);
-```
+## 测试报告
 
-示例3：只生产一种对象，只不过这些对象是放在内存池中的
-这种得话，直接使用克隆模式实现是不是更好
-```C++
-Object* obj = newObj(params...);
-```
+功能测试：
+Starting memory pool tests...
+Running basic allocation test...
+Basic allocation test passed!
+Running memory writing test...
+Memory writing test passed!
+Running multi-threading test...
+Multi-threading test passed!
+Running edge cases test...
+Edge cases test passed!
+Running stress test...
+Stress test passed!
+All tests passed successfully!
 
-示例4：只生产几种对象，可以根据大小、对象编号、对象名来创建
-这种是简单工厂模式，不推荐
-```C++
-Object* obj = newObj(ObjID, params...)
-```
+性能测试：
+Starting performance tests...
+Warming up memory systems...
+Warmup complete.
+
+
+Testing small allocations (100000 allocations of 32 bytes):
+Memory Pool: 4.088 ms
+New/Delete: 14.468 ms
+
+Testing multi-threaded allocations (4 threads, 25000 allocations each):
+Memory Pool: 5.222 ms
+New/Delete: 18.166 ms
+
+Testing mixed size allocations (50000 allocations):
+Memory Pool: 14.885 ms
+New/Delete: 13.487 ms
 
 ## 测试标准
 
@@ -63,26 +74,4 @@ Object* obj = newObj(ObjID, params...)
             - ABA问题
 2. 性能测试
     综合性能必须跑赢new/delete，测试出优势的地方，输出性能报告
-    - 单线程
-        1. 场景1：
-    - 多线程
 
-## 存在问题
-
-1. 处理ABA问题，导致内存池性能弱于原生new/delete(libmalloc)
-2. 不处理ABA问题，单线程性能更强，但线程不安全，无法执行多线程操作
-3. Benchmark测试用例中，多个用例共享一个单例内存池，对结果会有影响
-4. 内存只能申请，不能释放，长期运行会造成资源浪费
-5. 每种大小内存块即便只有一个slot，也会占用一整个block，内存内部碎片很大
-
-## 性能瓶颈与优化策略
-
-1. 多线程条件下，线程每次申请内存都需要竞争。
-   优化策略：给每个线程预留一部分内存作为缓存，避免频繁竞争
-2. slot处理ABA性能不佳，不处理有数据问题；block的申请使用的互斥锁？？？
-   原方案：slot使用CAS无锁链表存储；申请block时使用互斥锁，并返回1个slot
-   优化策略：slot使用自旋锁+原子变量来控制访问权限；block继续使用互斥锁按页申请内存，但获取内存后，直接切分插入slot链表中。
-3. block块使用operator new()申请内存，性能不佳
-   优化策略：按页分配，使用mmap优化性能
-   效果：不明显，因为测试环境为macos，默认的libmalloc对于大内存很大可能是按页分配的。
-4. 尽量不要使用STL
